@@ -1,65 +1,139 @@
 ﻿using System.Runtime.CompilerServices;
-using System.Threading;
-using Soenneker.Atomics.NullableBools.Abstract;
+using Soenneker.Atomics.Ints;
 
 namespace Soenneker.Atomics.NullableBools;
 
-/// <inheritdoc cref="IAtomicNullableBool"/>
-public sealed class AtomicNullableBool : IAtomicNullableBool
+/// <summary>
+/// A lightweight, allocation-free atomic tri-state flag implemented on top of an inline
+/// <see cref="AtomicInt"/>.
+/// <para/>
+/// Backing values:
+/// <list type="bullet">
+/// <item><description><c>-1</c> = null / unknown</description></item>
+/// <item><description><c>0</c> = false</description></item>
+/// <item><description><c>1</c> = true</description></item>
+/// </list>
+/// </summary>
+/// <remarks>
+/// <para>
+/// Reads establish acquire semantics and writes establish release semantics.
+/// </para>
+/// <para>
+/// This is a mutable <see langword="struct"/> intended for use as a <b>private field</b>
+/// or inline synchronization primitive. Avoid copying this type or exposing it publicly.
+/// </para>
+/// </remarks>
+public struct AtomicNullableBool
 {
     private const int _null = -1;
     private const int _false = 0;
     private const int _true = 1;
-    private int _state;
 
+    private AtomicInt _state;
+
+    /// <summary>
+    /// Initializes a new instance in the <c>null</c>/<c>unknown</c> state.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool() => _state = _null;
+    public AtomicNullableBool()
+        => _state = new AtomicInt(_null);
 
+    /// <summary>
+    /// Initializes a new instance with the specified initial value.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool(bool initialValue) => _state = initialValue ? _true : _false;
+    public AtomicNullableBool(bool initialValue)
+        => _state = new AtomicInt(initialValue ? _true : _false);
 
+    /// <summary>
+    /// Gets a value indicating whether the current state is non-null.
+    /// </summary>
     public bool HasValue
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Volatile.Read(ref _state) != _null;
+        get => _state.Read() != _null;
     }
 
+    /// <summary>
+    /// Gets the current value as a nullable boolean.
+    /// </summary>
     public bool? Value
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            int s = Volatile.Read(ref _state);
+            int s = _state.Read();
             return s == _null ? null : s == _true;
         }
     }
 
+    /// <summary>
+    /// Reads the raw backing state.
+    /// </summary>
+    /// <returns>
+    /// <c>-1</c> (null), <c>0</c> (false), or <c>1</c> (true).
+    /// </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool GetValueOrFalse()
-    {
-        int s = Volatile.Read(ref _state);
-        return s == _true;
-    }
+    public int Read() => _state.Read();
 
+    /// <summary>
+    /// Writes a raw backing state.
+    /// </summary>
+    /// <remarks>
+    /// Callers must only provide valid values: <c>-1</c>, <c>0</c>, or <c>1</c>.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool GetValueOrTrue()
-    {
-        int s = Volatile.Read(ref _state);
-        return s != _false;
-    }
+    public void Write(int state) => _state.Write(state);
 
+    /// <summary>
+    /// Gets the value, treating <c>null</c>/<c>unknown</c> as <see langword="false"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set(bool value) => Interlocked.Exchange(ref _state, value ? _true : _false);
+    public bool GetValueOrFalse() => _state.Read() == _true;
 
+    /// <summary>
+    /// Gets the value, treating <c>null</c>/<c>unknown</c> as <see langword="true"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySet(bool value) => Interlocked.CompareExchange(ref _state, value ? _true : _false, _null) == _null;
+    public bool GetValueOrTrue() => _state.Read() != _false;
 
+    /// <summary>
+    /// Sets the state to <see langword="true"/> or <see langword="false"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Reset() => Interlocked.Exchange(ref _state, _null);
+    public void Set(bool value)
+        => _state.Write(value ? _true : _false);
 
+    /// <summary>
+    /// Attempts to set the state to <see langword="true"/> or <see langword="false"/>
+    /// only if the current state is <c>null</c>/<c>unknown</c>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TrySet(bool value)
+        => _state.CompareExchange(value ? _true : _false, _null) == _null;
+
+    /// <summary>
+    /// Attempts to transition the state from <paramref name="expected"/> to
+    /// <paramref name="newState"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryCompareExchange(int newState, int expected)
+        => _state.CompareExchange(newState, expected) == expected;
+
+    /// <summary>
+    /// Resets the state to <c>null</c>/<c>unknown</c>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Reset() => _state.Write(_null);
+
+    /// <summary>
+    /// Returns a string representation of the current state.
+    /// </summary>
     public override string ToString()
-    {
-        int s = Volatile.Read(ref _state);
-        return s switch { _null => "null", _true => "true", _ => "false" };
-    }
+        => _state.Read() switch
+        {
+            _null => "null",
+            _true => "true",
+            _ => "false"
+        };
 }
