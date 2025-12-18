@@ -35,15 +35,13 @@ public struct AtomicNullableBool
     /// Initializes a new instance in the <c>null</c>/<c>unknown</c> state.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool()
-        => _state = new AtomicInt(_null);
+    public AtomicNullableBool() => _state = new AtomicInt(_null);
 
     /// <summary>
     /// Initializes a new instance with the specified initial value.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool(bool initialValue)
-        => _state = new AtomicInt(initialValue ? _true : _false);
+    public AtomicNullableBool(bool initialValue) => _state = new AtomicInt(initialValue ? _true : _false);
 
     /// <summary>
     /// Gets a value indicating whether the current state is non-null.
@@ -65,6 +63,9 @@ public struct AtomicNullableBool
             int s = _state.Read();
             return s == _null ? null : s == _true;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => _state.Write(value.HasValue ? value.Value ? _true : _false : _null);
     }
 
     /// <summary>
@@ -101,24 +102,21 @@ public struct AtomicNullableBool
     /// Sets the state to <see langword="true"/> or <see langword="false"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set(bool value)
-        => _state.Write(value ? _true : _false);
+    public void Set(bool value) => _state.Write(value ? _true : _false);
 
     /// <summary>
     /// Attempts to set the state to <see langword="true"/> or <see langword="false"/>
     /// only if the current state is <c>null</c>/<c>unknown</c>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySet(bool value)
-        => _state.CompareExchange(value ? _true : _false, _null) == _null;
+    public bool TrySet(bool value) => _state.CompareExchange(value ? _true : _false, _null) == _null;
 
     /// <summary>
     /// Attempts to transition the state from <paramref name="expected"/> to
     /// <paramref name="newState"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryCompareExchange(int newState, int expected)
-        => _state.CompareExchange(newState, expected) == expected;
+    public bool TryCompareExchange(int newState, int expected) => _state.CompareExchange(newState, expected) == expected;
 
     /// <summary>
     /// Resets the state to <c>null</c>/<c>unknown</c>.
@@ -129,11 +127,10 @@ public struct AtomicNullableBool
     /// <summary>
     /// Returns a string representation of the current state.
     /// </summary>
-    public override string ToString()
-        => _state.Read() switch
-        {
-            _null => "null",
-            _true => "true",
-            _ => "false"
-        };
+    public override string ToString() => _state.Read() switch
+    {
+        _null => "null",
+        _true => "true",
+        _ => "false"
+    };
 }
