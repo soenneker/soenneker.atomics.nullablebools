@@ -1,11 +1,12 @@
-﻿using System.Runtime.CompilerServices;
-using Soenneker.Atomics.Ints;
+﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using Soenneker.Atomics.ValueInts;
 
 namespace Soenneker.Atomics.NullableBools;
 
 /// <summary>
 /// A lightweight, allocation-free atomic tri-state flag implemented on top of an inline
-/// <see cref="AtomicInt"/>.
+/// <see cref="ValueAtomicInt"/>.
 /// <para/>
 /// Backing values:
 /// <list type="bullet">
@@ -23,25 +24,26 @@ namespace Soenneker.Atomics.NullableBools;
 /// or inline synchronization primitive. Avoid copying this type or exposing it publicly.
 /// </para>
 /// </remarks>
+[DebuggerDisplay("{Value}")]
 public struct AtomicNullableBool
 {
     private const int _null = -1;
     private const int _false = 0;
     private const int _true = 1;
 
-    private AtomicInt _state;
+    private ValueAtomicInt _state;
 
     /// <summary>
     /// Initializes a new instance in the <c>null</c>/<c>unknown</c> state.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool() => _state = new AtomicInt(_null);
+    public AtomicNullableBool() => _state = new ValueAtomicInt(_null);
 
     /// <summary>
     /// Initializes a new instance with the specified initial value.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public AtomicNullableBool(bool initialValue) => _state = new AtomicInt(initialValue ? _true : _false);
+    public AtomicNullableBool(bool initialValue) => _state = new ValueAtomicInt(initialValue ? _true : _false);
 
     /// <summary>
     /// Gets a value indicating whether the current state is non-null.
@@ -61,11 +63,23 @@ public struct AtomicNullableBool
         get
         {
             int s = _state.Read();
-            return s == _null ? null : s == _true;
+
+            if (s == _null)
+                return null;
+
+            return s == _true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _state.Write(value.HasValue ? value.Value ? _true : _false : _null);
+        set
+        {
+            int s = _null;
+
+            if (value.HasValue)
+                s = value.GetValueOrDefault() ? _true : _false;
+
+            _state.Write(s);
+        }
     }
 
     /// <summary>
