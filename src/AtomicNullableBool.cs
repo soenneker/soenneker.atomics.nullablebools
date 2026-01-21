@@ -5,7 +5,7 @@ using Soenneker.Atomics.ValueInts;
 namespace Soenneker.Atomics.NullableBools;
 
 /// <summary>
-/// A lightweight, allocation-free atomic tri-state flag implemented on top of an inline
+/// A lightweight atomic tri-state flag implemented on top of an inline
 /// <see cref="ValueAtomicInt"/>.
 /// <para/>
 /// Backing values:
@@ -20,12 +20,12 @@ namespace Soenneker.Atomics.NullableBools;
 /// Reads establish acquire semantics and writes establish release semantics.
 /// </para>
 /// <para>
-/// This is a mutable <see langword="struct"/> intended for use as a <b>private field</b>
-/// or inline synchronization primitive. Avoid copying this type or exposing it publicly.
+/// This is a mutable reference type. Use as a private field and avoid exposing the instance publicly
+/// unless you want shared, aliasable state.
 /// </para>
 /// </remarks>
 [DebuggerDisplay("{Value}")]
-public struct AtomicNullableBool
+public sealed class AtomicNullableBool
 {
     private const int _null = -1;
     private const int _false = 0;
@@ -46,6 +46,20 @@ public struct AtomicNullableBool
     public AtomicNullableBool(bool initialValue) => _state = new ValueAtomicInt(initialValue ? _true : _false);
 
     /// <summary>
+    /// Initializes a new instance with the specified initial nullable value.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public AtomicNullableBool(bool? initialValue)
+    {
+        int s = _null;
+
+        if (initialValue.HasValue)
+            s = initialValue.GetValueOrDefault() ? _true : _false;
+
+        _state = new ValueAtomicInt(s);
+    }
+
+    /// <summary>
     /// Gets a value indicating whether the current state is non-null.
     /// </summary>
     public bool HasValue
@@ -55,7 +69,7 @@ public struct AtomicNullableBool
     }
 
     /// <summary>
-    /// Gets the current value as a nullable boolean.
+    /// Gets or sets the current value as a nullable boolean.
     /// </summary>
     public bool? Value
     {
