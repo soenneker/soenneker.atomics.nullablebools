@@ -1,10 +1,9 @@
-﻿using Xunit;
 
 namespace Soenneker.Atomics.NullableBools.Tests;
 
 public sealed class AtomicNullableBoolTests 
 {
-    [Fact]
+    [Test]
     public void Default()
     {
 
