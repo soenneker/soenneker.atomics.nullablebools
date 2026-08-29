@@ -13,6 +13,28 @@ A lightweight atomic tri-state flag implemented on top of an inline `ValueAtomic
 dotnet add package Soenneker.Atomics.NullableBools
 ```
 
+## Usage
+
+The null state is useful for a value that has not been determined yet. `TrySet` lets one caller publish the first result:
+
+```csharp
+using Soenneker.Atomics.NullableBools;
+
+var availability = new AtomicNullableBool();
+
+if (availability.TrySet(await ProbeAvailability()))
+{
+    // This caller published the transition from unknown to known.
+}
+
+bool? result = availability.Value;
+availability.Reset();
+```
+
+`GetValueOrFalse` and `GetValueOrTrue` provide explicit fallback policies without changing the stored state.
+
+Prefer the nullable `Value`, `Set`, `TrySet`, and `Reset` members in application code. `Read`, `Write`, and `TryCompareExchange` expose the raw representation (`-1`, `0`, `1`) and do not validate supplied integers; invalid raw values can produce misleading boolean and string results.
+
 ## What you get
 
 - `AtomicNullableBool` — A lightweight atomic tri-state flag implemented on top of an inline `ValueAtomicInt`. Backing values: `-1` = null / unknown `0` = false `1` = true.
